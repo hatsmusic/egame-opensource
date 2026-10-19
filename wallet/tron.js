@@ -1,11 +1,11 @@
 /**
  * EGC Wallet - Tron
- * TRC20 USDT 地址派生、转账签名、余额查询
+ * TRC20 USDT address derivation, transfer signing, balance queries
  */
 (function () {
   'use strict';
 
-  const TRON_USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; // 主网
+  const TRON_USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; // mainnet
   const TRON_RPC = 'https://api.trongrid.io';
 
   function getTronWeb() {
@@ -14,12 +14,12 @@
   }
 
   /**
-   * 从助记词派生 Tron 地址
-   * Tron 用 m/44'/195'/0'/0/0
+   * Derive Tron address from mnemonic
+   * Tron uses m/44'/195'/0'/0/0
    */
   function addressFromPhrase(phrase) {
     if (!window.ethers) throw new Error('ethers not loaded');
-    // 用 ethers 的 HDNode 做 BIP44 派生，再转 Tron 地址格式
+    // Use ethers HDNode for BIP44 derivation, then convert to Tron address format
     const node = window.ethers.HDNodeWallet.fromPhrase(phrase);
     const tronNode = node.derivePath(`m/44'/195'/0'/0/0`);
     const privKeyHex = tronNode.privateKey.slice(2);
@@ -30,15 +30,15 @@
   function privateKeyFromPhrase(phrase) {
     const node = window.ethers.HDNodeWallet.fromPhrase(phrase);
     const tronNode = node.derivePath(`m/44'/195'/0'/0/0`);
-    return tronNode.privateKey.slice(2); // 去掉 0x
+    return tronNode.privateKey.slice(2); // strip the 0x prefix
   }
 
-  /** 查 TRC20 USDT 余额 */
+  /** Query TRC20 USDT balance */
   async function getUsdtBalance(address) {
     const tronWeb = getTronWeb();
     const contract = await tronWeb.contract().at(TRON_USDT);
     const bal = await contract.balanceOf(address).call();
-    // TRC20 USDT 6 位小数
+    // TRC20 USDT has 6 decimals
     const wei = BigInt(bal.toString());
     const whole = wei / 1000000n;
     const frac = (wei % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
@@ -46,7 +46,7 @@
   }
 
   /**
-   * 签名并广播 TRC20 USDT 转账
+   * Sign and broadcast a TRC20 USDT transfer
    * @returns txid
    */
   async function sendUsdt(phrase, to, amountHuman) {
@@ -62,11 +62,11 @@
       { from: addressFromPhrase(phrase) },
       privKey
     );
-    // tronweb 的 .send() 私钥签名方式：用 triggerSmartContract + sign
+    // tronweb .send() private-key signing: uses triggerSmartContract + sign
     return tx; // txid
   }
 
-  /** 更稳的签名方式：手动构造交易 */
+  /** More robust signing approach: build the transaction manually */
   async function sendUsdtRaw(phrase, to, amountHuman) {
     const tronWeb = getTronWeb();
     tronWeb.setPrivateKey(privateKeyFromPhrase(phrase));

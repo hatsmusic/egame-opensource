@@ -1,6 +1,6 @@
 /**
  * EGC Wallet - UI
- * 平台内置钱包前端：创建 / 导入 / 解锁 / 转账 / 余额
+ * Platform built-in wallet frontend: create / import / unlock / transfer / balance
  */
 (function () {
   'use strict';
@@ -13,7 +13,7 @@
     { key: 'tron', name: 'Tron', evm: false },
   ];
 
-  let unlockedPhrase = null; // 解锁后的助记词（内存，用完即丢）
+  let unlockedPhrase = null; // Unlocked mnemonic (memory only, discarded after use)
   let currentChain = 'bnb';
 
   function esc(s) {
@@ -22,7 +22,7 @@
     }[c]));
   }
 
-  /** 内联错误提示（替代 alert） */
+  /** Inline error hint (replaces alert) */
   function showError(msg) {
     let box = el('egc-error');
     if (!box) {
@@ -37,7 +37,7 @@
     setTimeout(() => { box.style.display = 'none'; }, 5000);
   }
 
-  /** 按钮 loading 状态 */
+  /** Button loading state */
   function setLoading(btnId, loading, text) {
     const btn = el(btnId);
     if (!btn) return;
@@ -53,7 +53,7 @@
 
   function el(id) { return document.getElementById(id); }
 
-  /** 钱包主入口渲染 */
+  /** Main wallet entry render */
   async function render(containerId) {
     const box = el(containerId);
     if (!box) return;
@@ -107,10 +107,10 @@
   async function doCreate() {
     const p1 = el('egc-new-pw1').value, p2 = el('egc-new-pw2').value;
     if (p1 !== p2) return showError('两次密码不一致');
-    // 强密码验证由 keystore.create 处理
+    // Strong password validation is handled by keystore.create
     try {
       const phrase = await window.EgcKeystore.create(p1);
-      // 显示助记词备份（只一次）
+      // Show the mnemonic backup (once only)
       el('egc-wallet-form').innerHTML = `
         <div style="padding:16px;border-top:1px solid var(--border)">
           <h4 style="color:#f66">⚠️ 立即备份助记词</h4>
@@ -148,7 +148,7 @@
     const pw = el('egc-import-pw').value;
     try {
       await window.EgcKeystore.import(phrase, pw);
-      // 导入成功后解锁并显示
+      // Unlock and show after a successful import
       try {
         unlockedPhrase = await window.EgcKeystore.unlock(pw);
         renderDashboard();
@@ -178,7 +178,7 @@
     }
   }
 
-  /** 解锁后的主界面 - 真钱包风格 */
+  /** Post-unlock main UI - real wallet style */
   async function renderDashboard() {
     const box = document.querySelector('#egc-wallet-box') || document.body;
     let evmAddr = '', tronAddr = '';
@@ -199,7 +199,7 @@
 
     box.innerHTML = `
       <div style="max-width:480px;margin:0 auto">
-        <!-- 链切换 -->
+        <!-- chain switcher -->
         <div style="display:flex;gap:8px;margin-bottom:16px">
           ${CHAINS.map(c => `
             <button onclick="EgcWalletUI.switchChain('${c.key}')"
@@ -208,7 +208,7 @@
             </button>`).join('')}
         </div>
 
-        <!-- 余额卡 -->
+        <!-- balance card -->
         <div style="background:linear-gradient(135deg,#1a2b6d,#2d1b69);border-radius:20px;padding:24px;margin-bottom:16px;color:#fff">
           <div style="font-size:13px;opacity:0.7">总余额</div>
           <div style="font-size:32px;font-weight:800;margin:4px 0" id="egc-total-bal">--</div>
@@ -218,13 +218,13 @@
           </div>
         </div>
 
-        <!-- 操作按钮 -->
+        <!-- action buttons -->
         <div style="display:flex;gap:12px;margin-bottom:16px">
           <button onclick="EgcWalletUI.showSend()" style="flex:1;padding:14px;border-radius:14px;background:#4ade80;color:#000;border:none;font-weight:700;cursor:pointer">发送</button>
           <button onclick="EgcWalletUI.showReceive()" style="flex:1;padding:14px;border-radius:14px;background:var(--panel);color:var(--text);border:1px solid var(--border);font-weight:700;cursor:pointer">接收</button>
         </div>
 
-        <!-- 资产列表（只显示主流币） -->
+        <!-- asset list (major coins only) -->
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">资产</div>
         <div id="egc-assets">
           <div style="padding:20px;text-align:center;color:var(--muted)">加载中…</div>
@@ -247,7 +247,7 @@
     loadAssets();
   }
 
-  /** 加载主流币种余额（原生币 + USDT，不显示空气币） */
+  /** Load major coin balances (native + USDT, dust/low-value tokens excluded) */
   async function loadAssets() {
     const box = el('egc-assets');
     if (!box) return;
@@ -264,7 +264,7 @@
     let nativeBal = '…', usdtBal = '…';
     try {
       if (currentChain === 'tron') {
-        // Tron 原生币余额
+        // Tron native balance
         const tw = new window.TronWeb({ fullHost: 'https://api.trongrid.io' });
         const bal = await tw.trx.getBalance(addr);
         nativeBal = (bal / 1e6).toFixed(4);
@@ -281,7 +281,7 @@
       nativeBal = usdtBal = '—';
     }
 
-    // 只显示主流币：原生币 + USDT
+    // Show major coins only: native + USDT
     box.innerHTML = `
       <div style="background:var(--panel);border-radius:14px;margin-bottom:8px;padding:14px;display:flex;align-items:center;gap:12px">
         <div style="font-size:28px">${cm.nativeIcon}</div>
@@ -300,7 +300,7 @@
         <div style="text-align:right;font-weight:700">${usdtBal}</div>
       </div>`;
 
-    // 更新总余额（简化：只算 USDT）
+    // Update total balance (simplified: USDT only)
     const totalEl = el('egc-total-bal');
     if (totalEl && usdtBal !== '—' && usdtBal !== '…') {
       totalEl.textContent = '$' + parseFloat(usdtBal).toFixed(2);
@@ -343,7 +343,7 @@
     const amt = el('egc-amt').value.trim();
     const pw = el('egc-tx-pw').value;
     if (!to || !(parseFloat(amt) > 0)) return showError('请填写对方地址和金额');
-    // 转账前重新验证密码（不常驻内存）
+    // Re-verify the password before transfer (never kept resident in memory)
     try {
       const phrase = await window.EgcKeystore.unlock(pw);
       el('egc-tx-result').innerHTML = '<span class="muted">签名广播中…</span>';
@@ -353,7 +353,7 @@
       } else {
         hash = await window.EgcEvm.sendUsdt(currentChain, phrase, to, amt);
       }
-      // 立即丢掉
+      // Discard it immediately
       phrase.split('').forEach(() => {});
       el('egc-tx-result').innerHTML = `✅ 已广播<br><span style="word-break:break-all;font-size:12px">${esc(hash)}</span>`;
       loadAssets();

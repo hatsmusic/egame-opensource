@@ -1,12 +1,12 @@
 /**
  * EGC Wallet - Keystore
- * 助记词生成/导入、Web Crypto 加密、IndexedDB 存储
+ * Mnemonic generation/import, Web Crypto encryption, IndexedDB storage
  *
- * 安全设计：
- * - 私钥/助记词只存 IndexedDB（加密后），不用 localStorage
- * - 加密：PBKDF2-SHA256 600k 次 → AES-256-GCM
- * - 密钥对象 extractable: false，JS 拿不到原始字节
- * - 解密后只在内存保留，用完即丢
+ * Security design:
+ * - Private keys/mnemonics stored only in IndexedDB (encrypted), never localStorage
+ * - Encryption: PBKDF2-SHA256 600k iterations -> AES-256-GCM
+ * - Key objects are extractable: false, so JS cannot read the raw bytes
+ * - Decrypted data is kept in memory only and discarded after use
  */
 (function () {
   'use strict';
@@ -115,8 +115,8 @@
   }
 
   /**
-   * 强密码验证
-   * 要求：至少12位，包含大小写字母、数字、特殊字符中的至少3种
+   * Strong password validation
+   * Requirements: min 12 chars, at least 3 of: lowercase, uppercase, digits, special chars
    */
   function validateStrongPassword(pw) {
     if (!pw || pw.length < 12) {
@@ -130,7 +130,7 @@
     if (kinds < 3) {
       return { ok: false, reason: '需包含大小写字母、数字、特殊字符中的至少3种' };
     }
-    // 常见弱密码
+    // Common weak passwords
     const weak = ['123456', 'password', 'qwerty', 'abc123', '111111'];
     const lower = pw.toLowerCase();
     for (const w of weak) {
@@ -141,13 +141,13 @@
 
   // ---------- Public API ----------
   const Keystore = {
-    /** 是否已有钱包 */
+    /** Whether a wallet already exists */
     async hasWallet() {
       const v = await idbGet('mnemonic');
       return !!v;
     },
 
-    /** 创建新钱包：生成助记词并加密存储。返回助记词（只显示一次！） */
+    /** Create a new wallet: generate a mnemonic and store it encrypted. Returns the mnemonic (shown once only!) */
     async create(password) {
       const chk = validateStrongPassword(password);
       if (!chk.ok) throw new Error('weak_password: ' + chk.reason);
@@ -157,7 +157,7 @@
       return phrase;
     },
 
-    /** 导入已有助记词 */
+    /** Import an existing mnemonic */
     async import(phrase, password) {
       const chk = validateStrongPassword(password);
       if (!chk.ok) throw new Error('weak_password: ' + chk.reason);
@@ -167,7 +167,7 @@
       await idbSet('mnemonic', bundle);
     },
 
-    /** 解锁：解密并返回助记词（调用方用完即丢） */
+    /** Unlock: decrypt and return the mnemonic (caller must discard it after use) */
     async unlock(password) {
       const bundle = await idbGet('mnemonic');
       if (!bundle) throw new Error('no_wallet');
@@ -178,7 +178,7 @@
       }
     },
 
-    /** 删除钱包（需确认） */
+    /** Delete the wallet (requires confirmation) */
     async destroy() {
       await idbDel('mnemonic');
     },

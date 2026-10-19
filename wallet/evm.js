@@ -1,6 +1,6 @@
 /**
  * EGC Wallet - EVM (BSC / ETH / Polygon...)
- * 地址派生、USDT 转账签名、余额查询
+ * Address derivation, USDT transfer signing, balance queries
  */
 (function () {
   'use strict';
@@ -12,7 +12,7 @@
   ];
   const TRANSFER_SELECTOR = '0xa9059cbb';
 
-  // 默认 RPC（可被后台 evm_rpc_url 覆盖）
+  // Default RPC (can be overridden by backend evm_rpc_url config)
   const DEFAULT_RPC = {
     bnb: 'https://bsc-dataseed.binance.org/',
     eth: 'https://eth.llamarpc.com',
@@ -21,7 +21,7 @@
   };
 
   function getRpc(chainKey) {
-    // 优先用页面注入的配置
+    // Prefer page-injected config
     if (window.EGC_WALLET_RPC && window.EGC_WALLET_RPC[chainKey]) {
       return window.EGC_WALLET_RPC[chainKey];
     }
@@ -49,25 +49,25 @@
     return { bnb: 18, eth: 6, polygon: 6, arbitrum: 6 }[chainKey] ?? 18;
   }
 
-  /** 从助记词派生 EVM 地址 (m/44'/60'/0'/0/0) */
+  /** Derive EVM address from mnemonic (m/44'/60'/0'/0/0) */
   function addressFromPhrase(phrase) {
     const wallet = window.ethers.HDNodeWallet.fromPhrase(phrase);
     return wallet.address;
   }
 
-  /** 从助记词取私钥（仅内存） */
+  /** Get private key from mnemonic (memory only) */
   function privateKeyFromPhrase(phrase) {
     const wallet = window.ethers.HDNodeWallet.fromPhrase(phrase);
     return wallet.privateKey;
   }
 
-  /** 查 USDT 余额（返回人类可读数字字符串） */
+  /** Query USDT balance (returns human-readable numeric string) */
   async function getUsdtBalance(chainKey, address) {
     const usdt = getUsdt(chainKey);
     if (!usdt) throw new Error('usdt_not_configured');
     const provider = new window.ethers.JsonRpcProvider(getRpc(chainKey));
     const contract = new window.ethers.Contract(address, USDT_ABI, provider);
-    // 用低层 call 避免 ABI 问题
+    // Use a low-level call to avoid ABI issues
     const data = '0x70a08231' + address.slice(2).padStart(64, '0');
     const result = await provider.call({ to: usdt, data });
     const decimals = getDecimals(chainKey);
@@ -80,7 +80,7 @@
   }
 
   /**
-   * 签名并广播 USDT 转账
+   * Sign and broadcast a USDT transfer
    * @returns txHash
    */
   async function sendUsdt(chainKey, phrase, to, amountHuman) {
@@ -95,7 +95,7 @@
     const provider = new window.ethers.JsonRpcProvider(getRpc(chainKey));
     const wallet = new window.ethers.Wallet(privateKey, provider);
 
-    // 构造 ERC20 transfer 调用数据
+    // Build ERC20 transfer call data
     const iface = new window.ethers.Interface(USDT_ABI);
     const data = iface.encodeFunctionData('transfer', [to, amountWei]);
 
